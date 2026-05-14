@@ -4,22 +4,11 @@ blueprint:
     Turns high-power appliances (water heaters, pool pumps, etc.) on and off
     to consume excess solar energy instead of exporting it.
 
-    Turn-on: sun is in the operating window, grid consumption is below
-    (threshold − margin), and the higher-priority device has been on ≥ 40 s
-    (or this is the highest-priority device).
-
-    Turn-off: sun leaves the operating window, grid consumption rises above
-    (threshold + margin), or the higher-priority device has been off ≥ 40 s.
-    Safety: device is always turned off when it recovers from an unavailable
-    state.
-
-    Priority cascade — install one automation per device. Point each device's
-    "Higher-priority switch" at the device that should run before it. Leave
-    that field empty for the highest-priority device.
-
-    When a device's thermostat cuts off mid-cycle (power drops to ~0 W), the
-    surplus reappears in the grid sensor and naturally triggers the next
-    device — no special cycle-detection needed.
+    To control additional devices, create one automation per device using this
+    blueprint. Devices are chained by priority: the highest-priority device
+    leaves "Higher-priority device" empty, and the lowest-priority device
+    leaves "Lower-priority device" empty. Each device in between points to the
+    one above and below it in the chain.
   domain: automation
   source_url: https://raw.githubusercontent.com/oticat/ha-blueprints/refs/heads/main/solar_surplus_heater.yaml
   homeassistant:
@@ -94,6 +83,7 @@ blueprint:
           selector:
             entity:
               domain: sensor
+              unit_of_measurement: W
 
         grid_sensor_attribute:
           name: Grid sensor attribute (optional)
@@ -118,28 +108,29 @@ blueprint:
         max_grid_consumption:
           name: Grid activation threshold (W)
           description: >-
-            Device turns on below (threshold − margin) and off above
-            (threshold + margin). With zero-feed-in, use a small positive
-            value (e.g. 50 W). With feed-in enabled, negative values are
-            valid (e.g. −300 = "only run while exporting ≥ 300 W").
+            Maximum acceptable grid consumption before the device turns off.
+            Device turns on when grid is below (threshold − margin) and off
+            when above (threshold + margin).
           default: 200
           selector:
             number:
-              min: -5000
-              max: 5000
+              min: 0
+              max: 1000
               step: 50
               unit_of_measurement: W
 
         anti_flapping_margin:
           name: Anti-flapping margin (W)
           description: >-
-            Hysteresis band around the threshold. Prevents rapid switching
-            when grid power oscillates near the activation point.
+            Hysteresis band around the threshold. Device turns on when grid
+            consumption drops below (threshold − margin) and turns off when it
+            rises above (threshold + margin). Prevents rapid switching when
+            grid power oscillates near the activation point.
           default: 100
           selector:
             number:
-              min: 0
-              max: 1000
+              min: 50
+              max: 500
               step: 10
               unit_of_measurement: W
 
@@ -165,7 +156,7 @@ blueprint:
           name: East azimuth boundary (°)
           description: >-
             Do not operate when sun azimuth < this value (morning shade on
-            panels). 90 = due East. Increase if morning shade starts later.
+            panels). 90 = due East. Increase if morning shade ends later.
           default: 90
           selector:
             number:
