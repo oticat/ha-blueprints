@@ -349,10 +349,6 @@ trigger:
     from: unavailable
     id: device_recovered
 
-  # Periodic catch-up in case a trigger was missed
-  - platform: time_pattern
-    minutes: "/3"
-    id: periodic
 
 action:
   - choose:
@@ -376,7 +372,7 @@ action:
           - condition: template
             value_template: >-
               {{ trigger.id in
-                   ['grid_surplus', 'sun_up', 'az_enters_east', 'hp_on', 'periodic'] }}
+                   ['grid_surplus', 'sun_up', 'az_enters_east', 'hp_on'] }}
           - condition: template
             value_template: "{{ states(_switch) not in ['on', 'unavailable'] }}"
           - condition: template
@@ -394,7 +390,7 @@ action:
             value_template: >-
               {{ trigger.id in
                    ['grid_import', 'sun_down', 'az_exits_west',
-                    'hp_off', 'lp_off', 'periodic'] }}
+                    'hp_off', 'lp_off'] }}
           - condition: template
             value_template: "{{ states(_switch) not in ['off', 'unavailable'] }}"
           - condition: template
