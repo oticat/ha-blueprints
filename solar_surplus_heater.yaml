@@ -83,7 +83,8 @@ blueprint:
           selector:
             entity:
               domain: sensor
-              unit_of_measurement: W
+              filter:
+                - unit_of_measurement: W
 
         grid_sensor_attribute:
           name: Grid sensor attribute (optional)
