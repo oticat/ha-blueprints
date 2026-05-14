@@ -21,6 +21,7 @@ blueprint:
     surplus reappears in the grid sensor and naturally triggers the next
     device — no special cycle-detection needed.
   domain: automation
+  source_url: https://raw.githubusercontent.com/oticat/ha-blueprints/refs/heads/main/solar_surplus_heater.yaml
   homeassistant:
     min_version: "2024.6.0"
 
