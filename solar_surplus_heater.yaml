@@ -63,9 +63,9 @@ blueprint:
           name: Lower-priority device switch (optional)
           description: >-
             Switch of the device that runs after this one. Leave empty if
-            this is the lowest-priority device. When that device has been off
-            ≥ 40 s, this device re-evaluates whether it should also turn off
-            (acts as a fast-path signal that conditions may have deteriorated).
+            this is the lowest-priority device. While that device is on, this
+            device defers grid-overload turn-off — the lower-priority device
+            will react first, and this device re-evaluates 40 s after it turns off.
           default:
           selector:
             entity:
@@ -232,6 +232,15 @@ variables:
     {{ (not grid_data_valid)
        or (grid_power | float) > ((_max_grid | float) + (_margin | float)) }}
 
+  # Lower-priority device is currently on — defer grid-overload turn-off to it.
+  # It will react to grid_import first; lp_off fires here 40 s after it turns off.
+  lp_is_on: >-
+    {% if _lp_switch is not none %}
+      {{ states(_lp_switch) == 'on' }}
+    {% else %}
+      false
+    {% endif %}
+
   # Higher-priority device has been ON long enough to unlock this device.
   # Always true when no higher-priority device is configured.
   hp_on_stable: >-
@@ -254,7 +263,7 @@ variables:
 
   # Final verdicts
   should_be_on:  "{{ solar_window_ok and grid_allows_on and hp_on_stable }}"
-  should_be_off: "{{ (not solar_window_ok) or grid_forces_off or hp_off_cascade }}"
+  should_be_off: "{{ (not solar_window_ok) or hp_off_cascade or (grid_forces_off and not lp_is_on) }}"
 
 # trigger_variables are evaluated before triggers fire, making !input values
 # safely available to template triggers — returns false when input is not set.
