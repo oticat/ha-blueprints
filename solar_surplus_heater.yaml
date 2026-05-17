@@ -202,7 +202,7 @@ variables:
     {{ states(_grid_id) not in ['unknown', 'unavailable'] }}
 
   grid_power: >-
-    {% if (_grid_attr | string | trim) != "" %}
+    {% if _grid_attr %}
       {{ state_attr(_grid_id, _grid_attr) | float(0) }}
     {% else %}
       {{ states(_grid_id) | float(0) }}
@@ -284,7 +284,7 @@ trigger:
   - platform: template
     value_template: >-
       {% set gp = state_attr(_tv_grid, _tv_grid_attr) | float(0)
-                  if (_tv_grid_attr | string | trim) != ""
+                  if _tv_grid_attr
                   else states(_tv_grid) | float(0) %}
       {% set base = (_tv_max_grid | float) - (_tv_effective_margin | float) %}
       {% set effective = base - (_tv_max_watts | float) if not _tv_zero_feedin else base %}
@@ -295,7 +295,7 @@ trigger:
   - platform: template
     value_template: >-
       {% set gp = state_attr(_tv_grid, _tv_grid_attr) | float(0)
-                  if (_tv_grid_attr | string | trim) != ""
+                  if _tv_grid_attr
                   else states(_tv_grid) | float(0) %}
       {{ gp > ((_tv_max_grid | float) + (_tv_effective_margin | float)) }}
     id: grid_import
