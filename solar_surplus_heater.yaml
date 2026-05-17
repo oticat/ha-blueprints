@@ -195,6 +195,7 @@ variables:
   _zero_feedin:  !input zero_feed_in
   _max_watts:    !input device_max_watts
   _lp_switch:    !input lower_priority_switch
+  _effective_margin: "{{ [(_margin | float), ((_max_grid | float) - 25)] | min }}"
 
   # Grid sensor health and current value
   grid_data_valid: >-
@@ -223,14 +224,14 @@ variables:
   # With zero feed-in the inverter ramps up to cover the new load dynamically, so
   # grid_power alone is sufficient — adding device_max_watts would always block.
   grid_allows_on: >-
-    {% set base = (_max_grid | float) - (_margin | float) %}
+    {% set base = (_max_grid | float) - (_effective_margin | float) %}
     {% set effective = base - (_max_watts | float) if not _zero_feedin else base %}
     {{ grid_data_valid and (grid_power | float) < effective }}
 
   # Grid forces deactivation: sensor unavailable OR above (threshold + margin)
   grid_forces_off: >-
     {{ (not grid_data_valid)
-       or (grid_power | float) > ((_max_grid | float) + (_margin | float)) }}
+       or (grid_power | float) > ((_max_grid | float) + (_effective_margin | float)) }}
 
   # Lower-priority device is currently on — defer grid-overload turn-off to it.
   # It will react to grid_import first; lp_off fires here 40 s after it turns off.
@@ -268,14 +269,15 @@ variables:
 # trigger_variables are evaluated before triggers fire, making !input values
 # safely available to template triggers — returns false when input is not set.
 trigger_variables:
-  _tv_hp:          !input higher_priority_switch
-  _tv_lp:          !input lower_priority_switch
-  _tv_grid:        !input grid_sensor
-  _tv_grid_attr:   !input grid_sensor_attribute
-  _tv_max_grid:    !input max_grid_consumption
-  _tv_margin:      !input anti_flapping_margin
-  _tv_max_watts:   !input device_max_watts
-  _tv_zero_feedin: !input zero_feed_in
+  _tv_hp:               !input higher_priority_switch
+  _tv_lp:               !input lower_priority_switch
+  _tv_grid:             !input grid_sensor
+  _tv_grid_attr:        !input grid_sensor_attribute
+  _tv_max_grid:         !input max_grid_consumption
+  _tv_margin:           !input anti_flapping_margin
+  _tv_max_watts:        !input device_max_watts
+  _tv_zero_feedin:      !input zero_feed_in
+  _tv_effective_margin: "{{ [(_tv_margin | float), ((_tv_max_grid | float) - 25)] | min }}"
 
 trigger:
   # Grid drops below turn-on threshold → surplus has appeared
@@ -284,7 +286,7 @@ trigger:
       {% set gp = state_attr(_tv_grid, _tv_grid_attr) | float(0)
                   if (_tv_grid_attr | string | trim) != ""
                   else states(_tv_grid) | float(0) %}
-      {% set base = (_tv_max_grid | float) - (_tv_margin | float) %}
+      {% set base = (_tv_max_grid | float) - (_tv_effective_margin | float) %}
       {% set effective = base - (_tv_max_watts | float) if not _tv_zero_feedin else base %}
       {{ gp < effective }}
     id: grid_surplus
@@ -295,7 +297,7 @@ trigger:
       {% set gp = state_attr(_tv_grid, _tv_grid_attr) | float(0)
                   if (_tv_grid_attr | string | trim) != ""
                   else states(_tv_grid) | float(0) %}
-      {{ gp > ((_tv_max_grid | float) + (_tv_margin | float)) }}
+      {{ gp > ((_tv_max_grid | float) + (_tv_effective_margin | float)) }}
     id: grid_import
 
   # Sun enters operating elevation (potential turn-on)
