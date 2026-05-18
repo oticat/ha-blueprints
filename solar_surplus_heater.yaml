@@ -363,6 +363,13 @@ trigger:
     from: unavailable
     id: device_recovered
 
+  # Periodic safety check every 5 min — retries if a device ignored a command
+  # or if a trigger edge was missed. lp_is_on guard in should_be_off ensures
+  # only the lowest-priority active device turns off; cascade proceeds normally.
+  - platform: time_pattern
+    minutes: "/5"
+    id: periodic
+
 
 action:
   - choose:
@@ -386,12 +393,17 @@ action:
           - condition: template
             value_template: >-
               {{ trigger.id in
-                   ['grid_surplus', 'sun_up', 'az_enters_east', 'hp_on'] }}
+                   ['grid_surplus', 'sun_up', 'az_enters_east', 'hp_on', 'periodic'] }}
           - condition: template
             value_template: "{{ states(_switch) not in ['on', 'unavailable'] }}"
           - condition: template
             value_template: "{{ should_be_on }}"
         sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input device_switch
+          - delay:
+              seconds: 5
           - service: switch.turn_on
             target:
               entity_id: !input device_switch
@@ -404,12 +416,17 @@ action:
             value_template: >-
               {{ trigger.id in
                    ['grid_import', 'sun_down', 'az_exits_west',
-                    'hp_off', 'lp_off'] }}
+                    'hp_off', 'lp_off', 'periodic'] }}
           - condition: template
             value_template: "{{ states(_switch) not in ['off', 'unavailable'] }}"
           - condition: template
             value_template: "{{ should_be_off }}"
         sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input device_switch
+          - delay:
+              seconds: 5
           - service: switch.turn_off
             target:
               entity_id: !input device_switch
