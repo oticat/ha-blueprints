@@ -35,10 +35,12 @@ blueprint:
         device_max_watts:
           name: Device rated power (W)
           description: >-
-            Expected power draw when running. When zero feed-in is disabled,
-            this is used as a pre-flight check: the device only turns on if
-            current surplus already covers this full draw without crossing the
-            grid threshold.
+            Expected power draw when running. Used as a pre-flight check: the
+            device only turns on if the current grid reading leaves enough
+            headroom to absorb this full draw without crossing the grid
+            threshold. In zero feed-in mode the check is skipped only when
+            grid = 0 W (inverter has genuine surplus); when grid > 0 W the
+            inverter is already at capacity and the check still applies.
           default: 1000
           selector:
             number:
@@ -219,13 +221,14 @@ variables:
        and (sun_azimuth | float) <= (_max_az | float) }}
 
   # Grid allows activation: sensor valid AND enough surplus to absorb this device.
-  # With feed-in enabled the surplus is visible as negative grid power, so we
-  # require grid_power + device_max_watts < threshold − margin (pre-flight check).
-  # With zero feed-in the inverter ramps up to cover the new load dynamically, so
-  # grid_power alone is sufficient — adding device_max_watts would always block.
+  # Pre-flight check: require grid_power + device_max_watts < threshold − margin.
+  # This applies both when feed-in is enabled (surplus is visible as negative grid)
+  # AND in zero feed-in mode when grid > 0 (inverter is already at capacity, so any
+  # new load draws from the grid directly). Only skip the deduction when grid = 0
+  # in zero feed-in mode — that means the inverter has genuine headroom to absorb it.
   grid_allows_on: >-
     {% set base = (_max_grid | float) - (_effective_margin | float) %}
-    {% set effective = base - (_max_watts | float) if not _zero_feedin else base %}
+    {% set effective = base - (_max_watts | float) if (not _zero_feedin or (grid_power | float) > 0) else base %}
     {{ grid_data_valid and (grid_power | float) < effective }}
 
   # Grid forces deactivation: sensor unavailable OR above (threshold + margin)
@@ -287,7 +290,7 @@ trigger:
                   if _tv_grid_attr
                   else states(_tv_grid) | float(0) %}
       {% set base = (_tv_max_grid | float) - (_tv_effective_margin | float) %}
-      {% set effective = base - (_tv_max_watts | float) if not _tv_zero_feedin else base %}
+      {% set effective = base - (_tv_max_watts | float) if (not _tv_zero_feedin or gp > 0) else base %}
       {{ gp < effective }}
     id: grid_surplus
 
